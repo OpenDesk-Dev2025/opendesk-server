@@ -1,7 +1,5 @@
-// api/index.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// CORS Configuration - ដើម្បីឱ្យ App បងអាចហៅមក Server បាន
 const allowCors = (fn) => async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,17 +22,10 @@ const handler = async (req, res) => {
 
   try {
     const { messages } = req.body;
-    
-    // យកសារចុងក្រោយ និងប្រវត្តិរូបភាព (បើមាន)
-    // សាមញ្ញសិន៖ យកសារចុងក្រោយផ្ញើទៅ Gemini
     const lastMessage = messages[messages.length - 1];
     let promptPart = lastMessage.content;
     
-    // ពិនិត្យមើលថាតើមានរូបភាពទេ?
-    let imagePart = null;
     if (Array.isArray(promptPart)) {
-       // logic សម្រាប់រូបភាព (នៅពេលក្រោយ)
-       // ឥឡូវយកតែអក្សរសិន
        promptPart = promptPart.find(p => p.type === 'text')?.text || "Explain this image";
     }
 
@@ -48,7 +39,7 @@ const handler = async (req, res) => {
     res.status(200).json({ reply: text });
   } catch (error) {
     console.error("Server Error:", error);
-    res.status(500).json({ reply: "សូមអភ័យទោស Server មានបញ្ហាបច្ចេកទេស។ (" + error.message + ")" });
+    res.status(500).json({ reply: "Error: " + error.message });
   }
 };
 
