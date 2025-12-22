@@ -1,20 +1,55 @@
-{
-  "name": "opendesk-gateway",
-  "version": "1.0.0",
-  "description": "Secure AI Gateway for OpenDesk with API key rotation and model routing",
-  "main": "api/index.js",
-  "scripts": {
-    "dev": "node api/index.js",
-    "start": "node api/index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "@google/generative-ai": "^0.2.1",
-    "groq-sdk": "^0.4.0"
-  },
-  "engines": {
-    "node": ">=18.x"
+// api/index.js
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// CORS Configuration - ដើម្បីឱ្យ App បងអាចហៅមក Server បាន
+const allowCors = (fn) => async (req, res) => {
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
-}
+  return await fn(req, res);
+};
+
+const handler = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  try {
+    const { messages } = req.body;
+    
+    // យកសារចុងក្រោយ និងប្រវត្តិរូបភាព (បើមាន)
+    // សាមញ្ញសិន៖ យកសារចុងក្រោយផ្ញើទៅ Gemini
+    const lastMessage = messages[messages.length - 1];
+    let promptPart = lastMessage.content;
+    
+    // ពិនិត្យមើលថាតើមានរូបភាពទេ?
+    let imagePart = null;
+    if (Array.isArray(promptPart)) {
+       // logic សម្រាប់រូបភាព (នៅពេលក្រោយ)
+       // ឥឡូវយកតែអក្សរសិន
+       promptPart = promptPart.find(p => p.type === 'text')?.text || "Explain this image";
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent(promptPart);
+    const response = await result.response;
+    const text = response.text();
+
+    res.status(200).json({ reply: text });
+  } catch (error) {
+    console.error("Server Error:", error);
+    res.status(500).json({ reply: "សូមអភ័យទោស Server មានបញ្ហាបច្ចេកទេស។ (" + error.message + ")" });
+  }
+};
+
+module.exports = allowCors(handler);
