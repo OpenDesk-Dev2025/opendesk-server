@@ -1,6 +1,0 @@
-{
-  "name": "opendesk-server",
-  "dependencies": {
-    "@google/generative-ai": "latest"
-  }
-}
